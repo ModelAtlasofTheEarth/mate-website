@@ -31,3 +31,5 @@ models:
     branch: update-mate2
   - repo: ModelAtlasofTheEarth/gollapalli-2025-sundamegathrust
     branch: update-mate2
+#  - repo: ModelAtlasofTheEarth/giordani-2026-heymate
+#    branch: update-mate2

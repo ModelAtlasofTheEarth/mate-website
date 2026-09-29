@@ -319,11 +319,9 @@ def _infer_animation_kind(*values: str) -> str:
     """
     text = " ".join(_clean(v).lower() for v in values if _clean(v))
 
-    if text.endswith((".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif")):
+    if text.endswith(("png", "jpg", "jpeg", "webp", "svg", "gif")):
         return "image"
-    if text.endswith((".mp4", ".webm", ".mov", ".m4v")):
-        return "video"
-    if text.startswith("video/"):
+    if text.endswith(("mp4", "webm", "mov", "m4v")):
         return "video"
     return "video"
 
@@ -488,7 +486,6 @@ def _parse_ro_crate_graphics(repo: str, branch: str = "main") -> dict | None:
                         animation_kind = _infer_animation_kind(
                             url,
                             node.get("encodingFormat", ""),
-                            node.get("contentUrl", ""),
                         )
                     found = True
                     break
@@ -532,6 +529,7 @@ def discover_graphics(repo: str, branch: str = "main") -> dict:
         return result
 
     # Strategy 2: Legacy index sheet (fallback)
+
     result = _parse_index_sheet(repo, branch)
 
     # Warn about any graphic fields that remain empty

@@ -269,38 +269,31 @@ def render_model_page(m: dict) -> str:
     source_repo_url = f"https://github.com/{m['source_repo']}"
 
     data_tab_parts = []
+    meta_tab_parts = []
     if ds_nci:
         data_tab_parts.append(
-            f"        <p><strong>Dataset (NCI catalogue):</strong><br/>"
+            f"        <p><strong>Model input and output files (NCI catalogue):</strong><br/>"
             f'<a href="{ds_nci}" target="_blank" rel="noopener">{ds_nci}</a></p>'
         )
+        # move this secction to the metadata tab
     if ds_id:
         ds_id_url = safe_doi(ds_id) if not ds_id.startswith("http") else ds_id
-        data_tab_parts.append(
+        meta_tab_parts.append(
             f"        <p><strong>Dataset existing identifier:</strong><br/>"
             f'<a href="{ds_id_url}" target="_blank" rel="noopener">{ds_id}</a></p>'
         )
     if ds_notes:
         data_tab_parts.append(
-            f"        <p><strong>Dataset notes:</strong> {ds_notes}</p>"
-        )
-    if mf_nci:
-        data_tab_parts.append(
-            f"        <p><strong>Model files (NCI catalogue):</strong><br/>"
-            f'<a href="{mf_nci}" target="_blank" rel="noopener">{mf_nci}</a></p>'
+            f"        <p><strong>Model output data notes:</strong> {ds_notes}</p>"
         )
     if mf_id:
         mf_id_url = safe_doi(mf_id) if not mf_id.startswith("http") else mf_id
         data_tab_parts.append(
-            f"        <p><strong>Model files existing identifier:</strong><br/>"
+            f"        <p><strong>Model code / inputs DOI:</strong><br/>"
             f'<a href="{mf_id_url}" target="_blank" rel="noopener">{mf_id}</a></p>'
         )
-    if mf_notes:
-        data_tab_parts.append(
-            f"        <p><strong>Model files notes:</strong> {mf_notes}</p>"
-        )
     data_tab_parts.append(
-        f"        <p><strong>Source repository:</strong><br/>"
+        f"        <p><strong>M@TE artifact:</strong><br/>"
         f'<a href="{source_repo_url}" target="_blank" rel="noopener">{source_repo_url}</a></p>'
     )
     data_tab_html = (
@@ -308,7 +301,11 @@ def render_model_page(m: dict) -> str:
         if data_tab_parts
         else "        <p>Data information not available.</p>"
     )
-
+    meta_tab_html = (
+        "\n".join(meta_tab_parts)
+        if meta_tab_parts
+        else "        <p>meta information not available.</p>"
+    )
     if pub["title"]:
         pub_section = f"""        <p>
           <strong>{pub["title"]}</strong><br/>
@@ -413,6 +410,7 @@ def render_model_page(m: dict) -> str:
     </div>
 
     <div id="tab-meta" class="tab-panel">
+            {meta_tab_html}
       <h2>Citation</h2>
       {f"<blockquote>{credit}</blockquote>" if credit else "<p><em>See source repository for citation.</em></p>"}
 

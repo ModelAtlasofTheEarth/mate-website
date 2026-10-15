@@ -21,6 +21,9 @@ models:
   - repo: ModelAtlasofTheEarth/finch-2024-cprime
   - repo: ModelAtlasofTheEarth/yang-2023-eqcycles
   - repo: ModelAtlasofTheEarth/gollapalli-2022-sunda-subduction
+    # DO NOT CHANGE the branch 'update-mate2' unless you resubmit the metadata again
+    # the Template repository has breaking updates in mate2 development period that only
+    # these repositories require
   - repo: ModelAtlasofTheEarth/CopyLu-2026-ALEIB-Coupling
     branch: update-mate2
   - repo: ModelAtlasofTheEarth/Kay-2024-Vulcan
@@ -31,5 +34,3 @@ models:
     branch: update-mate2
   - repo: ModelAtlasofTheEarth/gollapalli-2025-sundamegathrust
     branch: update-mate2
-#  - repo: ModelAtlasofTheEarth/giordani-2026-heymate
-#    branch: update-mate2

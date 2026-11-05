@@ -223,6 +223,18 @@ def resolve(index, ref):
     return {}
 
 
+def resolve_many(index, refs):
+    """Resolve a single RO-Crate reference or a list of references."""
+    nodes = []
+    for ref in always_list(refs):
+        node = resolve(index, ref)
+        if not node and isinstance(ref, str):
+            node = index.get(ref, {})
+        if node:
+            nodes.append(node)
+    return nodes
+
+
 def get_name(node):
     if not isinstance(node, dict):
         return ""
@@ -731,25 +743,55 @@ def normalise_ro_crate(crate: dict, slug: str, repo: str, branch: str = "main") 
         or {"@id": "#datasetCreation"}
     )
     creation_node = resolve(index, creation_ref) or index.get("#datasetCreation", {})
-    instrument_ref = creation_node.get("instrument")
-    instrument_node = resolve(index, instrument_ref)
-    if not instrument_node and isinstance(instrument_ref, str):
-        instrument_node = index.get(instrument_ref, {})
+    instrument_refs = creation_node.get("instrument")
+    instrument_nodes = resolve_many(index, instrument_refs)
+    software_nodes = []
+    for node in instrument_nodes:
+        node_types = always_list(node.get("@type"))
+        if "SoftwareApplication" in node_types or (
+            node.get("@id", "").startswith("#software")
+            and "Service" not in node_types
+        ):
+            software_nodes.append(node)
 
-    sw_name = _clean(instrument_node.get("name"))
-    sw_url = _clean(instrument_node.get("url"))
-    sw_id = _clean(instrument_node.get("@id"))
-    sw_doi = ""
-    if _is_doi_like(sw_id):
-        sw_doi = _strip_doi_prefix(sw_id)
-    else:
-        match = re.search(r"zenodo\.org/records?/(\d+)", sw_id)
-        if match:
-            sw_doi = f"10.5281/zenodo.{match.group(1)}"
-    if not sw_doi and sw_url:
-        match = re.search(r"zenodo\.org/records?/(\d+)", sw_url)
-        if match:
-            sw_doi = f"10.5281/zenodo.{match.group(1)}"
+    # Older crates may link one software entity directly, while newer crates
+    # link several entities through an instrument array.  Keep the direct
+    # single-entity fallback for compatibility.
+    if not software_nodes and instrument_nodes:
+        candidate = instrument_nodes[0]
+        if "Service" not in always_list(candidate.get("@type")):
+            software_nodes = [candidate]
+
+    software_records = []
+    for instrument_node in software_nodes:
+        sw_url = _first_url(instrument_node)
+        if not sw_url:
+            sw_url = _clean(instrument_node.get("codeRepository"))
+        sw_id = _clean(instrument_node.get("@id"))
+        sw_doi = ""
+        if _is_doi_like(sw_id):
+            sw_doi = _strip_doi_prefix(sw_id)
+        else:
+            match = re.search(r"zenodo\.org/records?/(\d+)", sw_id)
+            if match:
+                sw_doi = f"10.5281/zenodo.{match.group(1)}"
+        if not sw_doi and sw_url:
+            match = re.search(r"zenodo\.org/records?/(\d+)", sw_url)
+            if match:
+                sw_doi = f"10.5281/zenodo.{match.group(1)}"
+        software_records.append(
+            {
+                "name": _clean(instrument_node.get("name")),
+                "doi": sw_doi,
+                "url": sw_url,
+                "version": _clean(instrument_node.get("softwareVersion")),
+            }
+        )
+
+    # Preserve the old normalized shape when no software entity is present;
+    # the renderer handles both a dict and a list for existing generated pages.
+    if not software_records:
+        software_records = [{"name": "", "doi": "", "url": "", "version": ""}]
 
     def find_data_node(candidates: List[str]) -> dict:
         for cand in candidates:
@@ -797,7 +839,7 @@ def normalise_ro_crate(crate: dict, slug: str, repo: str, branch: str = "main") 
         "research_tags": tags,
         "compute_tags": [],
         "publication": publication,
-        "software": {"name": sw_name, "doi": sw_doi, "url": sw_url},
+        "software": software_records,
         "graphic_abstract_url": graphics["graphic_abstract_url"],
         "graphic_abstract_caption": graphics["graphic_abstract_caption"],
         "landing_image_url": graphics["landing_image_url"],

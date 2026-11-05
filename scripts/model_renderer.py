@@ -169,7 +169,7 @@ def render_model_page(m: dict) -> str:
     - **Snapshot** — plain-language description + landing image or animation
     - **Science Overview** — research tags, associated publication, abstract,
       and graphic abstract image
-    - **Software & Setup** — compute tags, software name/DOI, model setup image
+    - **Software & Setup** — software name/DOI, model setup image
     - **Code & Data** — dataset and model file links (NCI catalogue + DOIs)
     - **Metadata** — citation text, licence, and funders
 
@@ -177,7 +177,7 @@ def render_model_page(m: dict) -> str:
         m: Model data dict.  Expected keys mirror the ``model:`` YAML block
            written by ``ingest_models.py``; required keys include ``slug``,
            ``title``, ``doi``, ``abstract``, ``description``, ``creators``,
-           ``tags``, ``research_tags``, ``compute_tags``, ``publication``,
+           ``tags``, ``research_tags``, ``publication``,
            ``software``, ``graphic_abstract_url``, ``landing_image_url``,
            ``animation_url``, ``model_setup_image_url``, ``dataset_nci_url``,
            ``dataset_existing_id``, ``dataset_notes``, ``model_files_nci_url``,
@@ -197,12 +197,12 @@ def render_model_page(m: dict) -> str:
     pub = m["publication"]
     pub_doi_href = safe_doi(pub["doi"])
 
-    sw = m["software"]
-    sw_doi_href = safe_doi(sw["doi"])
+    software_records = m["software"]
+    if isinstance(software_records, dict):
+        software_records = [software_records]
 
     creator_hdg_badges = creator_badges_html(m["creators"], linked=True, indent=4)
     rtags_html = tag_badges_html(m["research_tags"], linked=True, indent=12)
-    ctags_html = tag_badges_html(m["compute_tags"], linked=True, indent=12)
 
     ms_url = m["model_setup_image_url"] or PLACEHOLDER_SETUP_IMG
     ms_cap = m["model_setup_image_caption"] or ""
@@ -317,19 +317,25 @@ def render_model_page(m: dict) -> str:
         pub_section = "        <p>Publication information not available.</p>"
 
     sw_block_parts = []
-    if sw["name"]:
-        sw_block_parts.append(f"        <p><strong>{sw['name']}</strong></p>")
-    if sw["doi"] or sw["url"]:
-        links = []
-        if sw["doi"]:
-            links.append(
-                f'<a href="{sw_doi_href}" target="_blank" rel="noopener">{sw_doi_href}</a>'
+    for sw in software_records:
+        sw_doi_href = safe_doi(sw.get("doi", ""))
+        if sw.get("name"):
+            sw_block_parts.append(f"        <p><strong>{sw['name']}</strong></p>")
+        if sw.get("doi") or sw.get("url"):
+            links = []
+            if sw.get("doi"):
+                links.append(
+                    f'<a href="{sw_doi_href}" target="_blank" rel="noopener">{sw_doi_href}</a>'
+                )
+            if sw.get("url") and sw["url"] != sw_doi_href:
+                links.append(
+                    f'<a href="{sw["url"]}" target="_blank" rel="noopener">{sw["url"]}</a>'
+                )
+            sw_block_parts.append("        <p>" + " · ".join(links) + "</p>")
+        if sw.get("version"):
+            sw_block_parts.append(
+                f"        <p><strong>Version:</strong> {sw['version']}</p>"
             )
-        if sw["url"] and sw["url"] != sw_doi_href:
-            links.append(
-                f'<a href="{sw["url"]}" target="_blank" rel="noopener">{sw["url"]}</a>'
-            )
-        sw_block_parts.append("        <p>" + " · ".join(links) + "</p>")
     sw_block = (
         "\n".join(sw_block_parts)
         if sw_block_parts
@@ -387,11 +393,6 @@ def render_model_page(m: dict) -> str:
     </div>
 
     <div id="tab-setup" class="tab-panel">
-      <h2>Compute Tags</h2>
-      <div>
-{ctags_html if ctags_html else "        <p><em>None specified.</em></p>"}
-      </div>
-
       <h2>Software</h2>
 {sw_block}
 

@@ -16,6 +16,11 @@ project:
 website:
   title: "M@TE"
   description: "Model Atlas of the Earth (M@TE)."
+  cookie-consent:
+    type: express
+  google-analytics:
+    tracking-id: "G-SW2X6STFYY"
+    anonymize-ip: true
 
   # ── Top navigation bar ────────────────────────────────────────────────────
   navbar:

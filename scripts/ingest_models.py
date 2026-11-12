@@ -447,7 +447,15 @@ def _parse_index_sheet(repo: str, branch: str = "main") -> dict:
     return result
 
 
-def _parse_ro_crate_graphics(repo: str, branch: str = "main") -> dict | None:
+_GRAPHIC_ROLES = {
+    "graphic_abstract": ("graphic_abstract_url", "graphic_abstract_caption"),
+    "landing_image": ("landing_image_url", "landing_image_caption"),
+    "model_setup_figure": ("model_setup_image_url", "model_setup_image_caption"),
+    "animation": ("animation_url", "animation_caption"),
+}
+
+
+def _parse_ro_crate_graphics(crate: dict) -> dict:
     """Parse RO-Crate metadata for graphic entries (June 2026+ convention).
 
     Scans the RO-Crate @graph for entries whose @id ends with one of the
@@ -457,66 +465,38 @@ def _parse_ro_crate_graphics(repo: str, branch: str = "main") -> dict | None:
       path        — full download URL
       description — caption text
 
+    Only the landing image is required by the submission form, so a crate may
+    legitimately carry any subset of the four.  Roles without an entry are
+    returned as empty strings.
+
     Args:
-        repo: GitHub repository in ``Owner/name`` form.
-        branch: Branch to fetch from (default ``"main"``).
+        crate: Parsed ``ro-crate-metadata.json``.
 
-    Returns the standard 8-field dict only if all required graphic entries are
-    present. If any required graphic role is missing, returns ``None`` so the
-    caller can fall back to the legacy index sheet.
+    Returns the standard 8-field dict plus ``animation_kind``.
     """
-    role_suffixes = {
-        "graphic_abstract": ("graphic_abstract_url", "graphic_abstract_caption"),
-        "landing_image": ("landing_image_url", "landing_image_caption"),
-        "model_setup_figure": ("model_setup_image_url", "model_setup_image_caption"),
-        "animation": ("animation_url", "animation_caption"),
-    }
-
     result = {k: "" for k in GRAPHIC_FIELDS}
-    animation_kind = "video"
-    found = False
+    animation_kind = ""
 
-    try:
-        crate_url = (
-            f"https://raw.githubusercontent.com/{repo}/{branch}/ro-crate-metadata.json"
-        )
-        text = fetch_raw(crate_url, timeout=30)
-        if text is None:
-            return None
-
-        graph = json.loads(text).get("@graph", [])
-        for node in graph:
-            if not isinstance(node, dict):
-                continue
-            nid = node.get("@id", "")
-            for suffix, (url_key, cap_key) in role_suffixes.items():
-                if nid.endswith(suffix):
-                    url = (node.get("path") or node.get("url") or "").strip()
-                    result[url_key] = url
-                    result[cap_key] = (node.get("description") or "").strip()
-                    if suffix == "animation":
-                        animation_kind = _infer_animation_kind(
-                            url,
-                            node.get("encodingFormat", ""),
-                        )
-                    found = True
-                    break
-    except Exception:
-        return None
-
-    if not found:
-        return None
-
-    # Strict fallback: treat a partial RO-Crate as absent so legacy index
-    # sheets can supply missing graphics such as animation.
-    if any(not result[url_key] for url_key, _ in role_suffixes.values()):
-        return None
+    for node in always_list(crate.get("@graph")):
+        if not isinstance(node, dict):
+            continue
+        nid = _clean(node.get("@id"))
+        for suffix, (url_key, cap_key) in _GRAPHIC_ROLES.items():
+            if nid.endswith(suffix):
+                url = _clean(node.get("path"))
+                result[url_key] = url
+                result[cap_key] = _clean(node.get("description"))
+                if suffix == "animation" and url:
+                    animation_kind = _infer_animation_kind(
+                        url, _clean(node.get("encodingFormat"))
+                    )
+                break
 
     result["animation_kind"] = animation_kind
     return result
 
 
-def discover_graphics(repo: str, branch: str = "main") -> dict:
+def discover_graphics(repo: str, branch: str = "main", crate: Optional[dict] = None) -> dict:
     """
     Discover model graphics for a repository.
 
@@ -526,37 +506,36 @@ def discover_graphics(repo: str, branch: str = "main") -> dict:
       model_setup_figure, or animation.  Uses the ``path`` field as the
       download URL and ``description`` as the caption.
 
-    Strategy 2 — Legacy index sheet (backward compatibility fallback):
-      Only reached when the RO-Crate has no graphic entries (pre-June 2026
-      repositories).  Parses .website_material/index.md or .website_material/
-      index.json for explicit image→role mappings with captions.
+    Strategy 2 — Legacy index sheet (per-role fallback):
+      Any role the crate does not provide is filled from
+      .website_material/index.md or .website_material/index.json.  This is
+      required by every pre-June 2026 repository, and also by newer ones
+      whose crate omits an optional graphic that the index sheet still has.
 
     Args:
         repo: GitHub repository in ``Owner/name`` form.
         branch: Branch to fetch from (default ``"main"``).
+        crate: Already-fetched RO-Crate; fetched here when omitted.
     """
-    # Strategy 1: RO-Crate graphic entries (primary)
-    result = _parse_ro_crate_graphics(repo, branch)
-    if result is not None:
-        return result
+    if crate is None:
+        crate = fetch_ro_crate(repo, branch)
+    result = _parse_ro_crate_graphics(crate)
 
-    # Strategy 2: Legacy index sheet (fallback)
+    if any(not result[url_key] for url_key, _ in _GRAPHIC_ROLES.values()):
+        legacy = _parse_index_sheet(repo, branch)
+        for url_key, cap_key in _GRAPHIC_ROLES.values():
+            if not result[url_key] and legacy[url_key]:
+                result[url_key] = legacy[url_key]
+                result[cap_key] = legacy[cap_key]
+                if url_key == "animation_url":
+                    result["animation_kind"] = _infer_animation_kind(legacy[url_key])
 
-    result = _parse_index_sheet(repo, branch)
-
-    # Warn about any graphic fields that remain empty
-    url_keys = [k for k in result if k.endswith("_url")]
-    missing = [
-        k.replace("_url", "").replace("_", " ") for k in url_keys if not result[k]
-    ]
-    if missing:
+    # Only the landing image is mandatory; the other roles are optional.
+    if not result["landing_image_url"]:
         print(
-            f"  [WARN] discover_graphics({repo.split('/')[1]}): "
-            f"no graphic found for: {', '.join(missing)}",
+            f"  [WARN] discover_graphics({repo.split('/')[1]}): no landing image found",
             file=sys.stderr,
         )
-
-    result["animation_kind"] = _infer_animation_kind(result.get("animation_url", ""))
 
     return result
 
@@ -612,19 +591,82 @@ def _process_graphic(url: str, slug: str, label: str) -> str:
     return rel_path if os.path.exists(out_path) else url
 
 
+# The Lu-2026 crate generator prefixes every @id (and every reference to one)
+# with this base, e.g. "http://example.org/base/" for the root and
+# "http://example.org/base/#datasetCreation" for the creation activity.
+EXAMPLE_BASE = "http://example.org/base/"
+
+
+def _strip_example_base(value):
+    """Recursively remove the accidental ``example.org/base`` prefix.
+
+    The root (``http://example.org/base/``) becomes ``./`` as required by the
+    RO-Crate 1.1 spec; every other id loses the prefix.  Mirrors
+    ``normalize_rocrate_dict()`` in the model repositories' ``parse_utils.py``.
+    """
+    if isinstance(value, str):
+        if value in (EXAMPLE_BASE, EXAMPLE_BASE.rstrip("/")):
+            return "./"
+        if value.startswith(EXAMPLE_BASE):
+            return value[len(EXAMPLE_BASE) :]
+        return value
+    if isinstance(value, list):
+        return [_strip_example_base(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _strip_example_base(v) for k, v in value.items()}
+    return value
+
+
+def _index_graph(graph: list) -> dict:
+    """Index @graph nodes by ``@id``.
+
+    Nodes whose id carries a trailing slash (``model_code_inputs/``) are also
+    registered without it, so lookups work for both crate generations.
+    """
+    index = {n["@id"]: n for n in graph if isinstance(n, dict) and n.get("@id")}
+    for nid, node in list(index.items()):
+        if nid != "./" and nid.endswith("/"):
+            index.setdefault(nid.rstrip("/"), node)
+    return index
+
 # Candidate @ids for the RO-Crate root Data Entity, tried in order.
 #
 # The RO-Crate 1.1 spec (https://researchobject.github.io/ro-crate/) requires
-# the root Data Entity to be addressed as "./".  All legacy M@TE model crates
-# comply, but the Lu-2026 crate generator emits the root as
-# "http://example.org/base/" instead.  If a future model crate ever returns
-# empty root-level fields (title, abstract, description, creators, DOI, ...),
-# its root @id has changed again — add the new value here rather than
-# hard-coding it inside normalise_ro_crate().
-ROOT_ID_CANDIDATES = [
-    "./",  # RO-Crate 1.1 spec (all legacy M@TE model crates)
-    "http://example.org/base/",  # Lu-2026 generator convention
-]
+# the root Data Entity to be addressed as "./".  Known generator quirks (the
+# example.org prefix) are removed by _strip_example_base() before the root is
+# looked up.  If a future model crate ever returns empty root-level fields
+# (title, abstract, description, creators, DOI, ...), its root @id has changed
+# again — add the new value here rather than hard-coding it inside
+# normalise_ro_crate().
+ROOT_ID_CANDIDATES = ["./"]
+
+# Description the M@TE RO-Crate template puts on ``model_code_inputs`` when the
+# submitter gave no input notes; it is not real content.
+INPUT_NOTES_PLACEHOLDER = "Code and inputs for computational model"
+
+
+def _legacy_input_notes(repo: str, branch: str = "main") -> str:
+    """Read the model input notes from a legacy model repo's issue record.
+
+    Crates created before the notes were mapped into the RO-Crate keep them
+    only in ``.metadata_trail/issue_dict.json`` (``model_code_inputs.notes``).
+    New models must not rely on that directory — their notes come from the
+    crate — so this is used only for crates still carrying the placeholder
+    description.  Any failure simply means "no notes".
+    """
+    url = (
+        f"https://raw.githubusercontent.com/{repo}/{branch}"
+        "/.metadata_trail/issue_dict.json"
+    )
+    text = fetch_raw(url, timeout=30, log_failures=False)
+    if not text:
+        return ""
+    try:
+        record = json.loads(text)
+        inputs = record.get("model_code_inputs") or {}
+        return _clean(inputs.get("notes"))
+    except (ValueError, AttributeError):
+        return ""
 
 
 def _find_root_node(index: dict) -> dict:
@@ -658,8 +700,9 @@ def normalise_ro_crate(crate: dict, slug: str, repo: str, branch: str = "main") 
     repo: "Owner/repo-name"
     Returns the same schema dict as the old normalisers.
     """
+    crate = _strip_example_base(crate)
     graph = always_list(crate.get("@graph"))
-    index = {n.get("@id"): n for n in graph if isinstance(n, dict) and n.get("@id")}
+    index = _index_graph(graph)
     root = _find_root_node(index)
 
     title = _clean(root.get("name"))
@@ -684,20 +727,12 @@ def normalise_ro_crate(crate: dict, slug: str, repo: str, branch: str = "main") 
         if not cnode and isinstance(cref, dict):
             cnode = cref
         full_name = get_name(cnode)
-        if not full_name:
-            continue
-        orcid = ""
-        if isinstance(cref, dict):
-            orcid = _clean(cref.get("@id"))
-        orcid = orcid.replace("https://orcid.org/", "").replace("http://orcid.org/", "")
-        creators.append({"full_name": full_name, "orcid": orcid})
+        if full_name:
+            creators.append({"full_name": full_name})
 
     tags = []
     for kw in always_list(root.get("keywords")):
-        if isinstance(kw, dict):
-            val = _clean(kw.get("name")) or _clean(kw.get("@id"))
-        else:
-            val = _clean(kw)
+        val = _clean(kw)
         if val:
             tags.append(val)
     if not tags:
@@ -723,50 +758,37 @@ def normalise_ro_crate(crate: dict, slug: str, repo: str, branch: str = "main") 
     publication = {
         "title": _clean(citation_node.get("name")),
         "doi": _strip_doi_prefix(_clean(citation_node.get("@id"))),
-        "journal": "",
         "date": _clean(citation_node.get("datePublished")),
         "authors": pub_authors,
     }
 
-    license_ref = root.get("license")
-    if isinstance(license_ref, dict):
-        licence_url = _clean(license_ref.get("@id")) or _clean(license_ref.get("url"))
-        licence_node = resolve(index, license_ref)
-    else:
-        licence_url = _clean(license_ref)
-        licence_node = index.get(licence_url, {})
-    licence_name = _clean(licence_node.get("name"))
+    licence_url = _clean(root.get("license"))
+    licence_name = _clean(index.get(licence_url, {}).get("name"))
 
-    creation_ref = (
-        root.get("#datasetCreation")
-        or root.get("datasetCreation")
-        or {"@id": "#datasetCreation"}
-    )
-    creation_node = resolve(index, creation_ref) or index.get("#datasetCreation", {})
-    instrument_refs = creation_node.get("instrument")
-    instrument_nodes = resolve_many(index, instrument_refs)
-    software_nodes = []
-    for node in instrument_nodes:
-        node_types = always_list(node.get("@type"))
-        if "SoftwareApplication" in node_types or (
-            node.get("@id", "").startswith("#software")
-            and "Service" not in node_types
-        ):
-            software_nodes.append(node)
+    creation_node = index.get("#datasetCreation", {})
+    instrument_nodes = resolve_many(index, creation_node.get("instrument"))
 
-    # Older crates may link one software entity directly, while newer crates
-    # link several entities through an instrument array.  Keep the direct
-    # single-entity fallback for compatibility.
-    if not software_nodes and instrument_nodes:
-        candidate = instrument_nodes[0]
-        if "Service" not in always_list(candidate.get("@type")):
-            software_nodes = [candidate]
+    # Instruments are the software frameworks plus, optionally, the compute
+    # resource (a Service or Organization).  DOI-resolved software arrives
+    # typed SoftwareSourceCode and older entries SoftwareApplication, so select
+    # by exclusion rather than by software type.
+    non_software_types = {"Service", "Organization"}
+    software_nodes = [
+        node
+        for node in instrument_nodes
+        if not non_software_types.intersection(always_list(node.get("@type")))
+    ]
 
     software_records = []
     for instrument_node in software_nodes:
         sw_url = _first_url(instrument_node)
+        sw_repo = ""
+        for repo_ref in always_list(instrument_node.get("codeRepository")):
+            sw_repo = _clean(repo_ref.get("@id") if isinstance(repo_ref, dict) else repo_ref)
+            if sw_repo:
+                break
         if not sw_url:
-            sw_url = _clean(instrument_node.get("codeRepository"))
+            sw_url = sw_repo
         sw_id = _clean(instrument_node.get("@id"))
         sw_doi = ""
         if _is_doi_like(sw_id):
@@ -784,6 +806,7 @@ def normalise_ro_crate(crate: dict, slug: str, repo: str, branch: str = "main") 
                 "name": _clean(instrument_node.get("name")),
                 "doi": sw_doi,
                 "url": sw_url,
+                "repository": sw_repo,
                 "version": _clean(instrument_node.get("softwareVersion")),
             }
         )
@@ -791,23 +814,38 @@ def normalise_ro_crate(crate: dict, slug: str, repo: str, branch: str = "main") 
     # Preserve the old normalized shape when no software entity is present;
     # the renderer handles both a dict and a list for existing generated pages.
     if not software_records:
-        software_records = [{"name": "", "doi": "", "url": "", "version": ""}]
+        software_records = [
+            {"name": "", "doi": "", "url": "", "repository": "", "version": ""}
+        ]
 
     def find_data_node(candidates: List[str]) -> dict:
         for cand in candidates:
             if cand in index:
                 return index[cand]
-        for node in index.values():
-            node_name = _clean(node.get("name"))
-            if node_name in candidates:
-                return node
         return {}
 
     model_files_node = find_data_node(["model_code_inputs", "model_inputs"])
     dataset_node = find_data_node(["model_output_data", "model_outputs"])
 
-    model_files_nci_url = _first_url(model_files_node)
     dataset_nci_url = _first_url(dataset_node)
+
+    # "Model links" supplied through the submission form are stored as extra
+    # URLs on the inputs node, after the generated NCI/THREDDS catalogue URL
+    # (already shown as dataset_nci_url), so that one is skipped.
+    model_links: List[str] = []
+    for u in always_list(model_files_node.get("url")):
+        link = _clean(u.get("@id") if isinstance(u, dict) else u)
+        if link and link != dataset_nci_url and "thredds.nci.org.au" not in link:
+            if link not in model_links:
+                model_links.append(link)
+
+    # New crates carry the "model input usage" answer as the inputs node's
+    # description (empty when the submitter gave none) and are used as-is.
+    # Older crates hold the template's placeholder text instead; only those
+    # fall back to the legacy .metadata_trail record.
+    model_input_notes = _clean(model_files_node.get("description"))
+    if model_input_notes.rstrip(".").lower() == INPUT_NOTES_PLACEHOLDER.lower():
+        model_input_notes = _legacy_input_notes(repo, branch)
 
     model_files_existing_id = _first_identifier(
         model_files_node, exclude={dataset_doi_norm}
@@ -826,7 +864,7 @@ def normalise_ro_crate(crate: dict, slug: str, repo: str, branch: str = "main") 
         if fname:
             funders.append({"name": fname})
 
-    graphics = discover_graphics(repo, branch)
+    graphics = discover_graphics(repo, branch, crate)
 
     return {
         "slug": out_slug,
@@ -836,8 +874,6 @@ def normalise_ro_crate(crate: dict, slug: str, repo: str, branch: str = "main") 
         "doi": doi,
         "creators": creators,
         "tags": tags,
-        "research_tags": tags,
-        "compute_tags": [],
         "publication": publication,
         "software": software_records,
         "graphic_abstract_url": graphics["graphic_abstract_url"],
@@ -854,9 +890,9 @@ def normalise_ro_crate(crate: dict, slug: str, repo: str, branch: str = "main") 
         "dataset_nci_url": dataset_nci_url,
         "dataset_existing_id": dataset_existing_id,
         "dataset_notes": _clean(dataset_node.get("description")),
-        "model_files_nci_url": model_files_nci_url,
         "model_files_existing_id": model_files_existing_id,
-        "model_files_notes": _clean(model_files_node.get("description")),
+        "model_links": model_links,
+        "model_input_notes": model_input_notes,
         "credit_text": credit_text,
         "funders": funders,
         "source_repo": repo,
@@ -970,54 +1006,20 @@ function filterModels(query) {{
 # ---------------------------------------------------------------------------
 
 
-def write_tags_index(
-    all_tags: Dict[str, List[dict]],
-    research_tag_set: Set[str],
-    compute_tag_set: Set[str],
-) -> None:
+def write_tags_index(all_tags: Dict[str, List[dict]]) -> None:
     """all_tags: {tag_display_string: [model_dict, ...]}"""
     # Sort case-insensitively
     sorted_tags = sorted(all_tags.keys(), key=lambda t: t.lower())
 
-    research = [t for t in sorted_tags if tag_slug(t) in research_tag_set]
-    compute = [
-        t
-        for t in sorted_tags
-        if tag_slug(t) in compute_tag_set and tag_slug(t) not in research_tag_set
-    ]
-    other = [
-        t
-        for t in sorted_tags
-        if tag_slug(t) not in research_tag_set and tag_slug(t) not in compute_tag_set
-    ]
-
-    def cloud_items(tags):
-        html = ""
-        for tag in tags:
-            tslug = tag_slug(tag)
-            count = len(all_tags[tag])
-            html += f'  <a class="badge-tag" href="/tags/{tslug}.html">{tag} <small>({count})</small></a>\n'
-        return html
+    items = ""
+    for tag in sorted_tags:
+        tslug = tag_slug(tag)
+        count = len(all_tags[tag])
+        items += f'  <a class="badge-tag" href="/tags/{tslug}.html">{tag} <small>({count})</small></a>\n'
 
     sections = ""
-    if research:
-        sections += (
-            '<h2>Research Tags</h2>\n<div class="tag-cloud">\n'
-            + cloud_items(research)
-            + "</div>\n\n"
-        )
-    if compute:
-        sections += (
-            '<h2>Compute Tags</h2>\n<div class="tag-cloud">\n'
-            + cloud_items(compute)
-            + "</div>\n\n"
-        )
-    if other:
-        sections += (
-            '<h2>Other Tags</h2>\n<div class="tag-cloud">\n'
-            + cloud_items(other)
-            + "</div>\n\n"
-        )
+    if items:
+        sections = '<h2>Research Tags</h2>\n<div class="tag-cloud">\n' + items + "</div>\n\n"
 
     content = f"""---
 title: "Tags"
@@ -1163,6 +1165,10 @@ def write_featured_json(models: List[dict]) -> None:
                 "doi_display": m["doi"].replace("https://doi.org/", "")
                 if m["doi"]
                 else "",
+                "pub_doi_href": model_renderer.safe_doi(m["publication"]["doi"]),
+                "pub_doi_display": m["publication"]["doi"].replace(
+                    "https://doi.org/", ""
+                ),
             }
         )
     path = os.path.join(MODELS_DIR, "featured.json")
@@ -1256,20 +1262,9 @@ def main() -> None:
         display: ms for _slug, (display, ms) in _tag_slug_map.items()
     }
 
-    # Track which slugs are research vs compute tags
-    research_slug_set: Set[str] = set()
-    compute_slug_set: Set[str] = set()
-    for m in models:
-        for t in m["research_tags"]:
-            if t:
-                research_slug_set.add(tag_slug(t))
-        for t in m["compute_tags"]:
-            if t:
-                compute_slug_set.add(tag_slug(t))
-
     # Write tags/
     os.makedirs(TAGS_DIR, exist_ok=True)
-    write_tags_index(all_tags, research_slug_set, compute_slug_set)
+    write_tags_index(all_tags)
     for tag, tag_models in all_tags.items():
         write_tag_page(tag, tag_models)
 

@@ -157,7 +157,7 @@ model:
 At render time, the pandoc filter `_extensions/mate/model-page.py` intercepts
 each document, reads the `model:` metadata, calls
 `scripts/model_renderer.render_model_page()`, and replaces the empty document
-body with the full five-tab HTML layout.  The tab-switching JS
+body with the full four-tab HTML layout.  The tab-switching JS
 (`scripts/model-tabs.js`) is injected once globally via `_quarto.yml` rather
 than being duplicated in each page.
 

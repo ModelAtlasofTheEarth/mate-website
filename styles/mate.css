@@ -132,7 +132,11 @@ a:hover {
   text-decoration: none;
 }
 
+/* Fixed minimum width (8 monospace chars = "M@TE DOI") so the blue halves of
+   stacked "M@TE DOI" / "Pub. DOI" badges line up. */
 .badge-doi-left {
+  min-width: 8ch;
+  text-align: center;
   background-color: #555;
   color: white;
   padding: 2px 6px;

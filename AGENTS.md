@@ -52,7 +52,7 @@ model:
 At render time the pandoc filter `_extensions/mate/model-page.py`:
 1. Reads `doc.meta["model"]` from the parsed frontmatter
 2. Converts pandoc MetaValues to plain Python with `_meta_to_python` / `_stringify`
-3. Calls `scripts/model_renderer.render_model_page()` to produce the five-tab HTML
+3. Calls `scripts/model_renderer.render_model_page()` to produce the four-tab HTML
 4. Replaces the empty document body with a `RawBlock` containing that HTML
 
 To change the model page layout edit **only** `scripts/model_renderer.py`.
@@ -85,22 +85,31 @@ Two known edge cases fixed in this codebase:
 
 - Model metadata fetched from `raw.githubusercontent.com/{repo}/main/ro-crate-metadata.json`.
 - No GitHub token needed — all source repos **must be public**.
-- Graphics discovered from RO-Crate `@graph` entries (primary, June 2026+) or legacy `.website_material/` (fallback).
+- Graphics discovered from RO-Crate `@graph` entries (primary, June 2026+). Only the landing image is required by the submission form, so any role the crate lacks is filled from legacy `.website_material/index.{md,json}` (per-role fallback). Legacy models are never migrated, so that fallback stays.
+- A missing image or animation is omitted from the model page — no placeholder is shown (placeholders remain only on model cards and the home carousel).
+- Model input notes come from the crate: `model_code_inputs.description` (empty when the submitter gave none). Only legacy crates, where that description is still the template placeholder "Code and inputs for computational model", fall back to `.metadata_trail/issue_dict.json` (`model_code_inputs.notes`) via `_legacy_input_notes()`. New models must not rely on `.metadata_trail`.
+- Software frameworks are every `#datasetCreation` instrument that is not a `Service`/`Organization` (DOI-resolved software is typed `SoftwareSourceCode`, older entries `SoftwareApplication`).
 - PDF graphics auto-converted to PNG via `pdftoppm` (poppler dependency in pixi) **during ingest**; resolved URLs are stored in the YAML frontmatter so the pandoc filter never touches the filesystem.
 
 ### RO-Crate root `@id` gotcha
 
 The RO-Crate 1.1 spec requires the root Data Entity to be addressed as `./`, and
-all legacy M@TE model crates comply. The **Lu-2026 generator** instead emits the
-root as `http://example.org/base/`. `scripts/ingest_models.py` resolves the root
-via `ROOT_ID_CANDIDATES` + a heuristic fallback (`_find_root_node()`), because
-every root-level field (title, abstract, description, creators, DOI, publication,
-… ) is read from that single node — a wrong root means a model page renders with
-all of those blank even though graphics still appear.
+all legacy M@TE model crates comply. The **Lu-2026 generator** instead prefixes
+every `@id` (and reference) with `http://example.org/base/`. `normalise_ro_crate()`
+strips that prefix first (`_strip_example_base()`), so the root becomes `./` and
+ids like `#datasetCreation` resolve. Ids with a trailing slash
+(`model_code_inputs/`) are also indexed without it (`_index_graph()`).
+
+The root is then resolved via `ROOT_ID_CANDIDATES` + a heuristic fallback
+(`_find_root_node()`), because every root-level field (title, abstract,
+description, creators, DOI, publication, … ) is read from that single node — a
+wrong root means a model page renders with all of those blank even though
+graphics still appear.
 
 **Future work:** if a new model crate comes back with empty root-level fields,
 its root `@id` has changed again. Add the new value to `ROOT_ID_CANDIDATES`
-in `scripts/ingest_models.py` — never hard-code the root lookup elsewhere.
+(or extend `_strip_example_base()` if it is another generator prefix) in
+`scripts/ingest_models.py` — never hard-code the root lookup elsewhere.
 
 ## Design tokens (M@TE theme in `styles/mate.css`)
 

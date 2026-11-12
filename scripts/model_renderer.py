@@ -8,16 +8,17 @@ Used by:
 """
 
 import re
+from html import escape
 
-# Fallback images used when a model has no graphic or setup image.
+# Fallback thumbnail used on model cards and the home-page carousel.  Model
+# pages never show a placeholder: a missing image is simply left out.
 PLACEHOLDER_IMG = "https://placehold.co/1200x500/D64000/white?text=M%40TE+Model"
-PLACEHOLDER_SETUP_IMG = "https://placehold.co/1200x500/2c8ec7/white?text=Model+Setup"
 
 
-def doi_badge(doi: str, href: str = "") -> str:
+def doi_badge(doi: str, href: str = "", label: str = "DOI") -> str:
     """Return a two-part DOI badge anchor element.
 
-    Produces the styled ``DOI | <identifier>`` pill used across the site.
+    Produces the styled ``<label> | <identifier>`` pill used across the site.
     If ``doi`` is empty, returns an empty string.  If ``href`` is not
     supplied it is derived from ``doi`` automatically.
 
@@ -26,6 +27,8 @@ def doi_badge(doi: str, href: str = "") -> str:
             full ``https://doi.org/`` URL.
         href: Optional explicit link target.  Defaults to
             ``https://doi.org/{doi}``.
+        label: Text in the grey left half of the badge, e.g. ``"M@TE DOI"``
+            or ``"Pub. DOI"``.
 
     Returns:
         HTML string for the badge anchor, or ``""`` if ``doi`` is falsy.
@@ -39,7 +42,7 @@ def doi_badge(doi: str, href: str = "") -> str:
         doi_display = doi.replace("https://doi.org/", "")
     return (
         f'<a class="badge-doi" href="{href}" onclick="event.stopPropagation()" target="_blank" rel="noopener">'
-        f'<span class="badge-doi-left">DOI</span>'
+        f'<span class="badge-doi-left">{label}</span>'
         f'<span class="badge-doi-right">{doi_display}</span>'
         f"</a>"
     )
@@ -164,24 +167,30 @@ def render_model_page(m: dict) -> str:
     frontmatter, passes it here as a plain Python dict, and injects the
     returned HTML as a ``RawBlock`` replacing the document body.
 
-    The output is a five-tab layout:
+    The output is a four-tab layout:
 
-    - **Snapshot** — plain-language description + landing image or animation
-    - **Science Overview** — research tags, associated publication, abstract,
+    - **Snapshot** — plain-language description + animation or landing image
+    - **Science Overview** — tags, associated publication, abstract,
       and graphic abstract image
-    - **Software & Setup** — software name/DOI, model setup image
-    - **Code & Data** — dataset and model file links (NCI catalogue + DOIs)
+    - **Model & Software** — software (name, version, DOI, repository), then
+      the optional model links and model input notes, the model setup image,
+      the optional model output notes, and finally dataset and model file
+      links (NCI catalogue + DOIs)
     - **Metadata** — citation text, licence, and funders
+
+    Images and the animation are optional; a missing one is omitted from the
+    page rather than replaced by a placeholder.
 
     Args:
         m: Model data dict.  Expected keys mirror the ``model:`` YAML block
            written by ``ingest_models.py``; required keys include ``slug``,
            ``title``, ``doi``, ``abstract``, ``description``, ``creators``,
-           ``tags``, ``research_tags``, ``publication``,
+           ``tags``, ``publication``,
            ``software``, ``graphic_abstract_url``, ``landing_image_url``,
            ``animation_url``, ``model_setup_image_url``, ``dataset_nci_url``,
-           ``dataset_existing_id``, ``dataset_notes``, ``model_files_nci_url``,
-           ``model_files_existing_id``, ``model_files_notes``, ``licence_url``,
+           ``dataset_existing_id``, ``dataset_notes``,
+           ``model_files_existing_id``, optional ``model_links`` and
+           ``model_input_notes``, ``licence_url``,
             ``licence_name``, ``credit_text``, ``funders``, ``source_repo``.
 
     Returns:
@@ -202,44 +211,53 @@ def render_model_page(m: dict) -> str:
         software_records = [software_records]
 
     creator_hdg_badges = creator_badges_html(m["creators"], linked=True, indent=4)
-    rtags_html = tag_badges_html(m["research_tags"], linked=True, indent=12)
+    rtags_html = tag_badges_html(m["tags"], linked=True, indent=12)
 
-    ms_url = m["model_setup_image_url"] or PLACEHOLDER_SETUP_IMG
+    ms_url = m["model_setup_image_url"]
     ms_cap = m["model_setup_image_caption"] or ""
 
+    # Each figure is wrapped in a plain block ``model-figure`` holding the media
+    # container (a flex row in mate.css) followed by its caption, so the caption
+    # sits below the media.  A media file that fails to load hides the whole
+    # wrapper instead of leaving a broken icon.
+    hide_figure = "this.closest('.model-figure').style.display='none'"
+    cap_style = "font-size:13px;color:#777;text-align:center;margin-top:0.25rem;"
     if m.get("animation_url"):
         anim_url = m["animation_url"]
         anim_cap = m.get("animation_caption", "")
         anim_kind = (m.get("animation_kind") or "video").lower()
+        anim_cap_html = f'\n      <p style="{cap_style}">{anim_cap}</p>' if anim_cap else ""
         # animation_kind is decided during ingest so render time does not need
         # to probe the network or guess a MIME type.
         if anim_kind == "image":
-            media_html = f"""      <div class="animation-container">
-        <img src="{anim_url}"
+            anim_media = f"""        <img src="{anim_url}"
              alt="{anim_cap or "Model animation"}"
              style="max-width:100%; border-radius:6px;"
-             onerror="this.style.display='none'" />
-      </div>"""
+             onerror="{hide_figure}" />"""
         else:
-            media_html = f"""      <div class="animation-container">
-        <video controls autoplay loop muted playsinline style="max-width:100%; border-radius:6px;">
-          <source src="{anim_url}" />
+            anim_media = f"""        <video controls autoplay loop muted playsinline style="max-width:100%; border-radius:6px;">
+          <source src="{anim_url}" onerror="{hide_figure}" />
           Your browser does not support video playback.
-        </video>
+        </video>"""
+        media_html = f"""      <div class="model-figure">
+      <div class="animation-container">
+{anim_media}
+      </div>{anim_cap_html}
       </div>"""
-        if anim_cap:
-            media_html += f'\n      <p style="font-size:13px;color:#777;text-align:center;margin-top:0.25rem;">{anim_cap}</p>'
-    else:
-        li_url = m["landing_image_url"] or PLACEHOLDER_IMG
+    elif m["landing_image_url"]:
+        li_url = m["landing_image_url"]
         li_cap = m["landing_image_caption"] or ""
-        media_html = f"""      <div class="full-width-image">
+        li_cap_html = f'\n      <p style="{cap_style}">{li_cap}</p>' if li_cap else ""
+        media_html = f"""      <div class="model-figure">
+      <div class="full-width-image">
         <img src="{li_url}"
              alt="{li_cap}"
              style="width:100%; border-radius:6px;"
-             onerror="this.src='{PLACEHOLDER_IMG}';" />
+             onerror="{hide_figure}" />
+      </div>{li_cap_html}
       </div>"""
-        if li_cap:
-            media_html += f'\n      <p style="font-size:13px;color:#777;text-align:center;margin-top:0.25rem;">{li_cap}</p>'
+    else:
+        media_html = ""
 
     if pub["authors"]:
         pub_authors_str = ", ".join(
@@ -251,9 +269,7 @@ def render_model_page(m: dict) -> str:
     ds_nci = m["dataset_nci_url"]
     ds_id = m["dataset_existing_id"]
     ds_notes = m["dataset_notes"]
-    mf_nci = m["model_files_nci_url"]
     mf_id = m["model_files_existing_id"]
-    mf_notes = m["model_files_notes"]
 
     lic_url = m["licence_url"]
     lic_name = m["licence_name"] or lic_url
@@ -282,10 +298,6 @@ def render_model_page(m: dict) -> str:
             f"        <p><strong>Dataset existing identifier:</strong><br/>"
             f'<a href="{ds_id_url}" target="_blank" rel="noopener">{ds_id}</a></p>'
         )
-    if ds_notes:
-        data_tab_parts.append(
-            f"        <p><strong>Model output data notes:</strong> {ds_notes}</p>"
-        )
     if mf_id:
         mf_id_url = safe_doi(mf_id) if not mf_id.startswith("http") else mf_id
         data_tab_parts.append(
@@ -310,46 +322,86 @@ def render_model_page(m: dict) -> str:
         pub_section = f"""        <p>
           <strong>{pub["title"]}</strong><br/>
           {pub_authors_str}<br/>
-          <em>{pub["journal"]}</em>{(" — " + pub["date"]) if pub["date"] else ""}<br/>
-          {doi_badge(pub["doi"], pub_doi_href) if pub["doi"] else ""}
+          {f"<em>{pub['date']}</em><br/>" if pub["date"] else ""}
+          {doi_badge(pub["doi"], pub_doi_href, "Pub. DOI") if pub["doi"] else ""}
         </p>"""
     else:
         pub_section = "        <p>Publication information not available.</p>"
 
+    def link(href: str) -> str:
+        return f'<a href="{href}" target="_blank" rel="noopener">{href}</a>'
+
+    # One paragraph per framework, one "Label: value" line per field, so the
+    # whole record is a single font size.
     sw_block_parts = []
     for sw in software_records:
-        sw_doi_href = safe_doi(sw.get("doi", ""))
+        lines = []
         if sw.get("name"):
-            sw_block_parts.append(f"        <p><strong>{sw['name']}</strong></p>")
-        if sw.get("doi") or sw.get("url"):
-            links = []
-            if sw.get("doi"):
-                links.append(
-                    f'<a href="{sw_doi_href}" target="_blank" rel="noopener">{sw_doi_href}</a>'
-                )
-            if sw.get("url") and sw["url"] != sw_doi_href:
-                links.append(
-                    f'<a href="{sw["url"]}" target="_blank" rel="noopener">{sw["url"]}</a>'
-                )
-            sw_block_parts.append("        <p>" + " · ".join(links) + "</p>")
+            lines.append(f"<strong>Software:</strong> {sw['name']}")
         if sw.get("version"):
-            sw_block_parts.append(
-                f"        <p><strong>Version:</strong> {sw['version']}</p>"
-            )
+            lines.append(f"<strong>Version:</strong> {sw['version']}")
+        # The DOI and the record URL point at the same page, so show only the
+        # DOI; the URL is used only when there is no DOI.
+        sw_doi_href = safe_doi(sw.get("doi", ""))
+        main_href = sw_doi_href or sw.get("url", "")
+        if main_href:
+            label = "Software DOI" if sw_doi_href else "Software URL"
+            lines.append(f"<strong>{label}:</strong> {link(main_href)}")
+        repo_href = sw.get("repository", "")
+        if repo_href and repo_href != main_href:
+            lines.append(f"<strong>Software Repository:</strong> {link(repo_href)}")
+        if lines:
+            sw_block_parts.append("        <p>" + "<br/>\n        ".join(lines) + "</p>")
     sw_block = (
         "\n".join(sw_block_parts)
         if sw_block_parts
         else "        <p>Software information not available.</p>"
     )
 
-    if doi_display:
-        doi_badge_html = (
-            f'    <a class="badge-doi" href="{doi_href}" target="_blank" rel="noopener">'
-            f'<span class="badge-doi-left">DOI</span>'
-            f'<span class="badge-doi-right">{doi_display}</span></a>'
-        )
+    if ms_url:
+        ms_cap_html = f'\n      <p style="{cap_style}">{ms_cap}</p>' if ms_cap else ""
+        setup_block = f"""
+      <div class="model-figure">
+      <h2>Model Setup</h2>
+      <div class="full-width-image">
+        <img src="{ms_url}"
+             alt="{ms_cap}"
+             style="width:100%; border-radius:6px;"
+             onerror="{hide_figure}" />
+      </div>{ms_cap_html}
+      </div>"""
     else:
-        doi_badge_html = ""
+        setup_block = ""
+
+    # Optional sections, only present for newer model repositories.
+    def notes_section(title: str, text: str) -> str:
+        if not text:
+            return ""
+        return (
+            f"\n      <h2>{title}</h2>\n"
+            f'      <p style="white-space:pre-line;">{escape(text, quote=False)}</p>'
+        )
+
+    model_links = m.get("model_links") or []
+    links_block = (
+        "\n      <h2>Model Links</h2>\n"
+        + "\n".join(f"        <p>{link(u)}</p>" for u in model_links)
+        if model_links
+        else ""
+    )
+    input_notes_block = notes_section("Model Input Notes", m.get("model_input_notes", ""))
+    output_notes_block = notes_section("Model Output Notes", ds_notes)
+
+    mate_doi_html = (
+        doi_badge(doi_raw, doi_href, "M@TE DOI")
+        if doi_display
+        else "<em>M@TE DOI not verified.</em>"
+    )
+    pub_doi_html = (
+        "<br/>\n    " + doi_badge(pub["doi"], pub_doi_href, "Pub. DOI")
+        if pub["doi"]
+        else ""
+    )
 
     abstract = m["abstract"]
     ga_url = m["graphic_abstract_url"]
@@ -357,8 +409,7 @@ def render_model_page(m: dict) -> str:
     return f"""<div class="model-page">
 
   <div class="model-meta-block">
-    <strong>DOI:</strong>
-    {doi_badge_html if doi_badge_html else "<em>DOI not verified.</em>"}
+    {mate_doi_html}{pub_doi_html}
     <br/><br/>
     <strong>Creators:</strong><br/>
 {creator_hdg_badges}
@@ -368,8 +419,7 @@ def render_model_page(m: dict) -> str:
     <div class="tab-nav">
       <button class="tab-btn active" onclick="switchTab(this,'snapshot')">Snapshot</button>
       <button class="tab-btn" onclick="switchTab(this,'overview')">Science Overview</button>
-      <button class="tab-btn" onclick="switchTab(this,'setup')">Software &amp; Setup</button>
-      <button class="tab-btn" onclick="switchTab(this,'data')">Code &amp; Data</button>
+      <button class="tab-btn" onclick="switchTab(this,'model')">Model &amp; Software</button>
       <button class="tab-btn" onclick="switchTab(this,'meta')">Metadata</button>
     </div>
 
@@ -392,21 +442,13 @@ def render_model_page(m: dict) -> str:
       {f'<img src="{ga_url}" alt="Graphic abstract" style="width:100%; border-radius:6px; margin-top:1rem;" onerror="this.style.display=\'none\'" />' if ga_url else ""}
     </div>
 
-    <div id="tab-setup" class="tab-panel">
+    <div id="tab-model" class="tab-panel">
       <h2>Software</h2>
 {sw_block}
+{links_block}{input_notes_block}
+{setup_block}{output_notes_block}
 
-      <h2>Model Setup</h2>
-      <div class="full-width-image">
-        <img src="{ms_url}"
-             alt="{ms_cap}"
-             style="width:100%; border-radius:6px;"
-             onerror="this.src='{PLACEHOLDER_SETUP_IMG}';" />
-      </div>
-      {f'<p style="font-size:13px; color:#777; text-align:center; margin-top:0.25rem;">{ms_cap}</p>' if ms_cap else ""}
-    </div>
-
-    <div id="tab-data" class="tab-panel">
+      <h2>Code &amp; Data</h2>
 {data_tab_html}
     </div>
 
@@ -444,7 +486,8 @@ def model_card_html(m: dict) -> str:
     Args:
         m: Model data dict.  Required keys: ``slug``, ``title``, ``doi``,
            ``landing_image_url``, ``creators`` (list of dicts with
-           ``full_name``), ``tags`` (list of strings).
+           ``full_name``), ``tags`` (list of strings), ``publication``
+           (dict with ``doi``).
 
     Returns:
         HTML string for the card ``<a>`` element.
@@ -475,17 +518,16 @@ def model_card_html(m: dict) -> str:
                 f'\n      <a class="badge-tag" href="/tags/{tslug}.html">{t}</a>'
             )
 
-    doi_block = ""
     if doi_display:
-        doi_block = f"""
-      <br/>
-      <a class="badge-doi" href="{doi_href}" onclick="event.stopPropagation()" target="_blank" rel="noopener">
-        <span class="badge-doi-left">DOI</span>
-        <span class="badge-doi-right">{doi_display}</span>
-      </a>"""
+        doi_block = "\n      <br/>\n      " + doi_badge(doi_raw, doi_href, "M@TE DOI")
     else:
         doi_block = (
-            '\n      <br/><em style="font-size:12px;color:#888;">DOI not verified.</em>'
+            '\n      <br/><em style="font-size:12px;color:#888;">M@TE DOI not verified.</em>'
+        )
+    pub_doi = m["publication"]["doi"]
+    if pub_doi:
+        doi_block += "\n      <br/>\n      " + doi_badge(
+            pub_doi, safe_doi(pub_doi), "Pub. DOI"
         )
 
     return f"""

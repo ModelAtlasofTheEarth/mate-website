@@ -33,4 +33,3 @@ models:
   - repo: ModelAtlasofTheEarth/RodriguezCorcho-2026-RIbbonCollision
     branch: update-mate2
   - repo: ModelAtlasofTheEarth/gollapalli-2025-sundamegathrust
-    branch: update-mate2

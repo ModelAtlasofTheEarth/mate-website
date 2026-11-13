@@ -847,10 +847,16 @@ def normalise_ro_crate(crate: dict, slug: str, repo: str, branch: str = "main") 
     if model_input_notes.rstrip(".").lower() == INPUT_NOTES_PLACEHOLDER.lower():
         model_input_notes = _legacy_input_notes(repo, branch)
 
-    model_files_existing_id = _first_identifier(
-        model_files_node, exclude={dataset_doi_norm}
-    )
-    dataset_existing_id = _first_identifier(dataset_node)
+    # Legacy crates keep the model code/inputs link (GitHub repo or Zenodo DOI)
+    # as a second identifier on the inputs node, after the M@TE DOI.  Show it
+    # as a model link so old and new crates fill the same section.
+    legacy_link = _first_identifier(model_files_node, exclude={dataset_doi_norm})
+    if legacy_link:
+        if not legacy_link.startswith("http"):
+            legacy_link = f"https://doi.org/{legacy_link}"
+        if legacy_link not in model_links:
+            model_links.append(legacy_link)
+
 
     credit_text_vals = always_list(root.get("creditText"))
     credit_text = _clean(credit_text_vals[0]) if credit_text_vals else ""
@@ -888,9 +894,7 @@ def normalise_ro_crate(crate: dict, slug: str, repo: str, branch: str = "main") 
         "licence_url": licence_url,
         "licence_name": licence_name,
         "dataset_nci_url": dataset_nci_url,
-        "dataset_existing_id": dataset_existing_id,
         "dataset_notes": _clean(dataset_node.get("description")),
-        "model_files_existing_id": model_files_existing_id,
         "model_links": model_links,
         "model_input_notes": model_input_notes,
         "credit_text": credit_text,

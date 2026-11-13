@@ -174,9 +174,9 @@ def render_model_page(m: dict) -> str:
       and graphic abstract image
     - **Model & Software** — software (name, version, DOI, repository), then
       the optional model links and model input notes, the model setup image,
-      the optional model output notes, and finally dataset and model file
-      links (NCI catalogue + DOIs)
-    - **Metadata** — citation text, licence, and funders
+      and the optional model output notes
+    - **Metadata** — M@TE submission (storage catalogue, source
+      repository) and citation text
 
     Images and the animation are optional; a missing one is omitted from the
     page rather than replaced by a placeholder.
@@ -188,10 +188,10 @@ def render_model_page(m: dict) -> str:
            ``tags``, ``publication``,
            ``software``, ``graphic_abstract_url``, ``landing_image_url``,
            ``animation_url``, ``model_setup_image_url``, ``dataset_nci_url``,
-           ``dataset_existing_id``, ``dataset_notes``,
-           ``model_files_existing_id``, optional ``model_links`` and
-           ``model_input_notes``, ``licence_url``,
-            ``licence_name``, ``credit_text``, ``funders``, ``source_repo``.
+           ``dataset_notes``,
+           optional ``model_links`` and
+           ``model_input_notes``, ``credit_text``, ``source_repo``.
+           (``licence_*`` and ``funders`` are ingested but not rendered.)
 
     Returns:
         HTML string starting with ``<div class="model-page">`` ready to be
@@ -267,57 +267,22 @@ def render_model_page(m: dict) -> str:
         pub_authors_str = ""
 
     ds_nci = m["dataset_nci_url"]
-    ds_id = m["dataset_existing_id"]
     ds_notes = m["dataset_notes"]
-    mf_id = m["model_files_existing_id"]
-
-    lic_url = m["licence_url"]
-    lic_name = m["licence_name"] or lic_url
-
-    funder_items = "".join(
-        f"    <li>{f['name']}</li>\n" for f in m["funders"] if f["name"]
-    )
-    funders_block = (
-        "<ul>\n" + funder_items + "  </ul>" if funder_items else "<p>Not specified.</p>"
-    )
 
     credit = m["credit_text"]
     source_repo_url = f"https://github.com/{m['source_repo']}"
 
-    data_tab_parts = []
-    meta_tab_parts = []
+    submission_parts = []
     if ds_nci:
-        data_tab_parts.append(
-            f"        <p><strong>Model input and output files (NCI catalogue):</strong><br/>"
+        submission_parts.append(
+            f"        <p><strong>Storage catalogue:</strong><br/>"
             f'<a href="{ds_nci}" target="_blank" rel="noopener">{ds_nci}</a></p>'
         )
-        # move this secction to the metadata tab
-    if ds_id:
-        ds_id_url = safe_doi(ds_id) if not ds_id.startswith("http") else ds_id
-        meta_tab_parts.append(
-            f"        <p><strong>Dataset existing identifier:</strong><br/>"
-            f'<a href="{ds_id_url}" target="_blank" rel="noopener">{ds_id}</a></p>'
-        )
-    if mf_id:
-        mf_id_url = safe_doi(mf_id) if not mf_id.startswith("http") else mf_id
-        data_tab_parts.append(
-            f"        <p><strong>Model code / inputs DOI:</strong><br/>"
-            f'<a href="{mf_id_url}" target="_blank" rel="noopener">{mf_id}</a></p>'
-        )
-    data_tab_parts.append(
+    submission_parts.append(
         f"        <p><strong>M@TE artifact:</strong><br/>"
         f'<a href="{source_repo_url}" target="_blank" rel="noopener">{source_repo_url}</a></p>'
     )
-    data_tab_html = (
-        "\n".join(data_tab_parts)
-        if data_tab_parts
-        else "        <p>Data information not available.</p>"
-    )
-    meta_tab_html = (
-        "\n".join(meta_tab_parts)
-        if meta_tab_parts
-        else "        <p>meta information not available.</p>"
-    )
+    meta_tab_html = "\n".join(submission_parts)
     if pub["title"]:
         pub_section = f"""        <p>
           <strong>{pub["title"]}</strong><br/>
@@ -448,22 +413,14 @@ def render_model_page(m: dict) -> str:
 {links_block}{input_notes_block}
 {setup_block}{output_notes_block}
 
-      <h2>Code &amp; Data</h2>
-{data_tab_html}
     </div>
 
     <div id="tab-meta" class="tab-panel">
-            {meta_tab_html}
+      <h2>M@TE Submission</h2>
+{meta_tab_html}
+
       <h2>Citation</h2>
       {f"<blockquote>{credit}</blockquote>" if credit else "<p><em>See source repository for citation.</em></p>"}
-
-      <h2>Licence</h2>
-      <p>
-        {f'<a href="{lic_url}" target="_blank" rel="noopener">{lic_name}</a>' if lic_url else (lic_name or "<em>Not specified.</em>")}
-      </p>
-
-      <h2>Funders</h2>
-      {funders_block}
     </div>
   </div>
 

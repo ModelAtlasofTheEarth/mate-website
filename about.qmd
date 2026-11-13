@@ -63,7 +63,7 @@ Accessible, Interoperable, Reusable).
 ### GitHub for submission and validation
 
 Models are submitted through structured
-[GitHub issue templates](https://github.com/ModelAtlasofTheEarth/model_submission).
+[GitHub issue templates](https://github.com/ModelAtlasofTheEarth/model-submission).
 Metadata is automatically validated and enriched
 via GitHub Actions, which connect to external services such as
 Crossref, DataCite and ORCID.

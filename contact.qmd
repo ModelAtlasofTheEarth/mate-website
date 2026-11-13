@@ -102,7 +102,7 @@ title: "Contact"
 
 M@TE accepts model submissions via GitHub. To submit your geoscientific model, open an issue in the submission repository:
 
-👉 **[Model Submission Repository](https://github.com/ModelAtlasofTheEarth/model_submission)**
+👉 **[Model Submission Repository](https://github.com/ModelAtlasofTheEarth/model-submission)**
 
 Use the structured issue template to provide metadata about your model, including:
 

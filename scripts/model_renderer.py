@@ -174,9 +174,9 @@ def render_model_page(m: dict) -> str:
       and graphic abstract image
     - **Model & Software** — software (name, version, DOI, repository), then
       the optional model links and model input notes, the model setup image,
-      and the optional model output notes
-    - **Metadata** — M@TE submission (storage catalogue, source
-      repository) and citation text
+      the optional model output notes, and a "Heavy Data Link" heading whose
+      word "Link" points to the storage (NCI) catalogue
+    - **Metadata** — M@TE submission (source repository) and citation text
 
     Images and the animation are optional; a missing one is omitted from the
     page rather than replaced by a placeholder.
@@ -273,11 +273,6 @@ def render_model_page(m: dict) -> str:
     source_repo_url = f"https://github.com/{m['source_repo']}"
 
     submission_parts = []
-    if ds_nci:
-        submission_parts.append(
-            f"        <p><strong>Storage catalogue:</strong><br/>"
-            f'<a href="{ds_nci}" target="_blank" rel="noopener">{ds_nci}</a></p>'
-        )
     submission_parts.append(
         f"        <p><strong>M@TE artifact:</strong><br/>"
         f'<a href="{source_repo_url}" target="_blank" rel="noopener">{source_repo_url}</a></p>'
@@ -298,7 +293,7 @@ def render_model_page(m: dict) -> str:
 
     # One paragraph per framework, one "Label: value" line per field, so the
     # whole record is a single font size.
-    sw_block_parts = []
+    sw_block_parts = ["<h2>Software</h2>"]
     for sw in software_records:
         lines = []
         if sw.get("name"):
@@ -356,6 +351,12 @@ def render_model_page(m: dict) -> str:
     )
     input_notes_block = notes_section("Model Input Notes", m.get("model_input_notes", ""))
     output_notes_block = notes_section("Model Output Notes", ds_notes)
+    heavy_data_block = (
+        '\n      <h2>Model data <a href="' + ds_nci + '" target="_blank" '
+        'rel="noopener" style="text-decoration:underline;">storage</a></h2>'
+        if ds_nci
+        else ""
+    )
 
     mate_doi_html = (
         doi_badge(doi_raw, doi_href, "M@TE DOI")
@@ -408,7 +409,7 @@ def render_model_page(m: dict) -> str:
     </div>
 
     <div id="tab-model" class="tab-panel">
-      <h2>Software</h2>
+{heavy_data_block}
 {sw_block}
 {links_block}{input_notes_block}
 {setup_block}{output_notes_block}

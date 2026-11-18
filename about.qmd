@@ -83,13 +83,6 @@ assigns persistent DOIs and ensures discoverability through standard catalog ser
 
 ---
 
-## Content ingestion mechanism
+## Want to submit a model
 
-Each scientific model has its own repository in the `ModelAtlasofTheEarth` GitHub organisation. When a model is ready for publication, a bunch or steps occur:
-
-TODO: outline the steps for model repo + output -> website publication.
-
-```{=html}
-</div>
-```
-
+👉 Click [here](https://github.com/ModelAtlasofTheEarth/model-submission/issues/new?template=model_submission.yml)

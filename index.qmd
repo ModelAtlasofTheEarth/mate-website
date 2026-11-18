@@ -121,10 +121,13 @@ toc: false
 
 <div style="text-align:center; margin-top:1rem; margin-bottom:2rem; display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap;">
   <a href="models/index.html" class="btn btn-primary" style="background:#D64000; border-color:#D64000;">
-    View all models →
+    View all models
   </a>
   <a href="about.html" class="btn btn-outline-secondary" style="border-color:#D64000; color:#D64000;">
-    About M@TE →
+    About M@TE
+  </a>
+  <a href="https://github.com/ModelAtlasofTheEarth/model-submission/issues/new?template=model_submission.yml" class="btn btn-primary" style="background:#D64000; border-color:#D64000;">
+    Submit a model
   </a>
 </div>
 

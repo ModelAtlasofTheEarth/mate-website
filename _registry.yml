@@ -15,20 +15,20 @@ models:
   - repo: ModelAtlasofTheEarth/RodriguezCorcho-2022-ArcCollision
   - repo: ModelAtlasofTheEarth/sandifordcraig-2023-subduction
   - repo: ModelAtlasofTheEarth/sachau-2022-icesheet
-  #- repo: ModelAtlasofTheEarth/Yu-2025-granulites
-  #- repo: ModelAtlasofTheEarth/cenki-tok-2020-crustal-roots-in-stable-continents
-  #- repo: ModelAtlasofTheEarth/cenki-2022-uht-granulitic-terranes
-  #- repo: ModelAtlasofTheEarth/finch-2024-cprime
-  #- repo: ModelAtlasofTheEarth/yang-2023-eqcycles
-  #- repo: ModelAtlasofTheEarth/gollapalli-2022-sunda-subduction
+  - repo: ModelAtlasofTheEarth/Yu-2025-granulites
+  - repo: ModelAtlasofTheEarth/cenki-tok-2020-crustal-roots-in-stable-continents
+  - repo: ModelAtlasofTheEarth/cenki-2022-uht-granulitic-terranes
+  - repo: ModelAtlasofTheEarth/finch-2024-cprime
+  - repo: ModelAtlasofTheEarth/yang-2023-eqcycles
+  - repo: ModelAtlasofTheEarth/gollapalli-2022-sunda-subduction
   #- repo: ModelAtlasofTheEarth/visp-mate2-oct2026
-  #  # DO NOT CHANGE the branch 'update-mate2' unless you resubmit the metadata again
-  #  # the Template repository has breaking updates in mate2 development period that only
-  #  # these repositories require
-  #- repo: ModelAtlasofTheEarth/CopyLu-2026-ALEIB-Coupling
-  #  branch: update-mate2
-  #- repo: ModelAtlasofTheEarth/Lu-2026-ALEIB-FreeSurface
-  #  branch: update-mate2
-  #- repo: ModelAtlasofTheEarth/RodriguezCorcho-2026-RIbbonCollision
-  #  branch: update-mate2
-  #- repo: ModelAtlasofTheEarth/gollapalli-2025-sundamegathrust
+    # DO NOT CHANGE the branch 'update-mate2' unless you resubmit the metadata again
+    # the Template repository has breaking updates in mate2 development period that only
+    # these repositories require
+  - repo: ModelAtlasofTheEarth/CopyLu-2026-ALEIB-Coupling
+    branch: update-mate2
+  - repo: ModelAtlasofTheEarth/Lu-2026-ALEIB-FreeSurface
+    branch: update-mate2
+  - repo: ModelAtlasofTheEarth/RodriguezCorcho-2026-RIbbonCollision
+    branch: update-mate2
+  - repo: ModelAtlasofTheEarth/gollapalli-2025-sundamegathrust

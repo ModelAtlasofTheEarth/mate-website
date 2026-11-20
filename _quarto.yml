@@ -41,7 +41,7 @@ website:
         href: contact.qmd
     right:
       - text: "AuScope"
-        href: https://www.auscope.org.au"
+        href: https://www.auscope.org.au
       - icon: github
         href: https://github.com/ModelAtlasofTheEarth
         aria-label: GitHub

@@ -116,7 +116,7 @@ its root `@id` has changed again. Add the new value to `ROOT_ID_CANDIDATES`
 
 | Token | Value |
 |-------|-------|
-| Primary | `#D64000` |
+| Primary | `#D64000` — defined once as `--mate-primary` in `styles/mate.css`; use `var(--mate-primary)` in CSS/QMDs (`PRIMARY_HEX` constants in `model_renderer.py` / `featured-carousel.js` for placeholder URLs must match) |
 | Link | `#2c8ec7` |
 | Navbar/hero bg | `#DAE1E3` |
 | Font | Open Sans |

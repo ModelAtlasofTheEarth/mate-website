@@ -23,7 +23,7 @@ traditional geology and numerical geosciences.
 ```{=html}
 <a href="models/index.html"
    class="btn btn-primary"
-   style="background:#D64000; border-color:#D64000; font-size:16px; padding:0.5rem 1.5rem; margin: 0.5rem 0 1.5rem;">
+   style="background:var(--mate-primary); border-color:var(--mate-primary); font-size:16px; padding:0.5rem 1.5rem; margin: 0.5rem 0 1.5rem;">
   Browse Models →
 </a>
 ```

@@ -6,9 +6,15 @@
 /* Google Fonts — Open Sans */
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap');
 
-/* Primary colour tokens */
+/* Primary colour tokens.
+   --mate-primary is the single definition of the M@TE orange for CSS/HTML;
+   use var(--mate-primary) everywhere (including inline styles in .qmd files).
+   --mate-primary-rgb must match it (for rgba() uses). Image-placeholder URLs
+   in scripts/model_renderer.py and scripts/featured-carousel.js can't use CSS
+   variables and keep their own PRIMARY_HEX constants - keep those in sync. */
 :root {
-  --mate-primary: #D64000;
+  --mate-primary: #282472; /*#D64000;*/
+  --mate-primary-rgb: 214, 64, 0;
   --mate-link: #2c8ec7;
   --mate-navbar-bg: #DAE1E3;
   --mate-body: #333;
@@ -40,6 +46,32 @@ a:hover {
 .navbar-brand img {
   height: 32px;
   width: auto;
+}
+
+/* AuScope logo on the home page, centred under the intro paragraph */
+.mate-funder-logo {
+  text-align: center;
+  margin: 0 0 1.75rem;
+}
+
+.mate-funder-logo img {
+  height: 40px;
+  width: auto;
+  vertical-align: middle;
+}
+
+/* Outline button in the M@TE primary colour (fills on hover) */
+.btn-outline-mate {
+  color: var(--mate-primary);
+  border-color: var(--mate-primary);
+  background: transparent;
+}
+
+.btn-outline-mate:hover,
+.btn-outline-mate:focus {
+  color: #fff;
+  background: var(--mate-primary);
+  border-color: var(--mate-primary);
 }
 
 /* ── Hero section ─────────────────────────────────────────────────────────── */

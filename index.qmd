@@ -29,7 +29,7 @@ toc: false
     font-weight: 700;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: #D64000;
+    color: var(--mate-primary);
     margin: 0 0 0.4rem;
   }
   .eyebrow-title h1 {
@@ -71,11 +71,11 @@ toc: false
     transition: box-shadow 0.2s, border-color 0.2s;
   }
   .cap-tile:hover {
-    box-shadow: 0 4px 14px rgba(214,64,0,0.12);
-    border-color: #D64000;
+    box-shadow: 0 4px 14px rgba(var(--mate-primary-rgb), 0.12);
+    border-color: var(--mate-primary);
   }
   .cap-tile .cap-icon { font-size: 26px; line-height: 1; }
-  .cap-tile strong    { font-size: 14px; font-weight: 700; color: #D64000; }
+  .cap-tile strong    { font-size: 14px; font-weight: 700; color: var(--mate-primary); }
   .cap-tile span      { font-size: 13px; color: #555; line-height: 1.5; }
 
   /* ── Filled oval highlights — non-interactive, no hover effect ── */
@@ -89,7 +89,7 @@ toc: false
     margin: 1.75rem 0;
   }
   .oval-highlights li {
-    background: #D64000;
+    background: var(--mate-primary);
     border-radius: 999px;
     padding: 0.4rem 1.4rem;
     font-size: 14px;
@@ -120,13 +120,13 @@ toc: false
 </div>
 
 <div style="text-align:center; margin-top:1rem; margin-bottom:2rem; display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap;">
-  <a href="models/index.html" class="btn btn-primary" style="background:#D64000; border-color:#D64000;">
+  <a href="models/index.html" class="btn btn-primary" style="background:var(--mate-primary); border-color:var(--mate-primary);">
     View all models
   </a>
-  <a href="about.html" class="btn btn-outline-secondary" style="border-color:#D64000; color:#D64000;">
+  <a href="about.html" class="btn btn-outline-mate">
     About M@TE
   </a>
-  <a href="https://github.com/ModelAtlasofTheEarth/model-submission/issues/new?template=model_submission.yml" class="btn btn-primary" style="background:#D64000; border-color:#D64000;">
+  <a href="https://github.com/ModelAtlasofTheEarth/model-submission/issues/new?template=model_submission.yml" class="btn btn-primary" style="background:var(--mate-primary); border-color:var(--mate-primary);">
     Submit a model
   </a>
 </div>
@@ -138,25 +138,32 @@ toc: false
   Hydrosphere, like Zenodo for geoscience but bigger and better.
 </p>
 
+<!-- AuScope logo -->
+<p class="mate-funder-logo">
+  <a href="https://www.auscope.org.au" target="_blank" rel="noopener">
+    <img src="images/AuScopeLogo.webp" alt="AuScope" />
+  </a>
+</p>
+
 <!-- Capability tiles — pill shape, center-justified, with emojis -->
 <div class="capability-tiles">
   <div class="cap-tile">
-    <span class="cap-icon">🔍</span>
+    <!--span class="cap-icon">🔍</span>
+    <span class="cap-icon">⬇️</span>
+    <span class="cap-icon">📊</span>
+    <span class="cap-icon">📦</span-->
     <strong>Explore &amp; visualise</strong>
     <span>Play animations and use models in teaching or research.</span>
   </div>
   <div class="cap-tile">
-    <span class="cap-icon">⬇️</span>
     <strong>Download &amp; build</strong>
     <span>Access input files and scripts to reproduce simulations.</span>
   </div>
   <div class="cap-tile">
-    <span class="cap-icon">📊</span>
     <strong>Analyse &amp; benchmark</strong>
     <span>Compare results across models without rerunning them.</span>
   </div>
   <div class="cap-tile">
-    <span class="cap-icon">📦</span>
     <strong>Upload your models</strong>
     <span>Packaged, preserved, and assigned a DOI for citation.</span>
   </div>
@@ -164,11 +171,20 @@ toc: false
 
 <!-- Filled oval highlights (non-interactive) -->
 <ul class="oval-highlights">
+  <li>Open source &amp; free</li>
+  <li>FAIR data principles</li>
+  <li>Reproducible models</li>
+  <li>DOI-assigned datasets</li>
+  <li>RO-Crate packaging</li>
+  <li>Sustainable infrastructure</li>
+</ul>
+
+<!-- ul class="oval-highlights">
   <li>✅ Open source &amp; free</li>
   <li>🔎 FAIR data principles</li>
   <li>♻️ Reproducible models</li>
   <li>🆔 DOI-assigned datasets</li>
   <li>📦 RO-Crate packaging</li>
   <li>🏗️ Sustainable infrastructure</li>
-</ul>
+</ul-->
 ```

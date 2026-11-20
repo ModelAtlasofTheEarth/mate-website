@@ -26,6 +26,11 @@
 (function () {
 
   // ── Configuration ──────────────────────────────────────────────────────
+  // M@TE primary colour for placehold.co URLs (CSS variables can't be used in
+  // image URLs). Keep in sync with --mate-primary in styles/mate.css.
+  var PRIMARY_HEX = 'D64000';
+  var PLACEHOLDER_IMG = 'https://placehold.co/600x300/' + PRIMARY_HEX + '/white?text=M%40TE+Model';
+
   var INTERVAL_MS = 2000;   // ms between auto-advance
   var TRANSITION_MS = 500;  // must match CSS transition duration
   var VISIBLE_COUNT = 3;    // cards shown at once
@@ -81,7 +86,7 @@
       '    <a href="/models/' + esc(m.slug) + '.html" class="mc-card-link">',
       '      <img src="' + esc(m.img_url) + '"',
       '           alt="' + esc(m.title) + '"',
-      '           onerror="this.src=\'https://placehold.co/600x300/D64000/white?text=M%40TE+Model\';" />',
+      '           onerror="this.src=\'' + PLACEHOLDER_IMG + '\';" />',
       '      <h3>' + esc(m.title) + '</h3>',
       '    </a>',
       '    <div class="mc-card-meta">',

@@ -12,7 +12,11 @@ from html import escape
 
 # Fallback thumbnail used on model cards and the home-page carousel.  Model
 # pages never show a placeholder: a missing image is simply left out.
-PLACEHOLDER_IMG = "https://placehold.co/1200x500/D64000/white?text=M%40TE+Model"
+# PRIMARY_HEX is the M@TE primary colour for placehold.co URLs, which can't use
+# CSS variables.  Keep in sync with --mate-primary in styles/mate.css.
+PRIMARY_HEX = "D64000"
+PLACEHOLDER_IMG = f"https://placehold.co/1200x500/{PRIMARY_HEX}/white?text=M%40TE+Model"
+PLACEHOLDER_CARD_IMG = f"https://placehold.co/600x300/{PRIMARY_HEX}/white?text=M%40TE+Model"
 
 
 def doi_badge(doi: str, href: str = "", label: str = "DOI") -> str:
@@ -496,7 +500,7 @@ def model_card_html(m: dict) -> str:
     <a href="/models/{slug}.html" class="mc-card-link">
       <img src="{img_url}"
            alt="{title}"
-           onerror="this.src='https://placehold.co/600x300/D64000/white?text=M%40TE+Model';" />
+           onerror="this.src='{PLACEHOLDER_CARD_IMG}';" />
       <h3>{title}</h3>
     </a>
     <div class="mc-card-meta">{creator_badges}
